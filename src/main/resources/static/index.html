@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestion des Produits</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body class="container mt-4">
+<h2 class="text-center">Gestion des Produits</h2>
+
+<div class="mb-3">
+  <input type="hidden" id="productId">
+
+  <input type="text" id="reference" class="form-control" placeholder="Référence du produit">
+  <div class="text-danger" id="errorReference"></div>
+
+  <input type="text" id="designation" class="form-control mt-2" placeholder="Désignation du produit">
+  <div class="text-danger" id="errorDesignation"></div>
+
+  <input type="number" id="prix" class="form-control mt-2" placeholder="Prix">
+  <div class="text-danger" id="errorPrix"></div>
+
+  <input type="number" id="qte" class="form-control mt-2" placeholder="Quantité">
+
+  <button class="btn btn-success mt-2" onclick="saveProduct()" id="saveButton">Ajouter</button>
+</div>
+
+<div class="mb-3 float-end">
+  <input type="text" id="search" class="form-control border-primary" placeholder="Rechercher un produit..." onkeyup="searchProducts()">
+</div>
+
+<table class="table">
+  <thead>
+  <tr>
+    <th>Référence</th>
+    <th>Désignation</th>
+    <th>Prix</th>
+    <th>Quantité</th>
+    <th>Actions</th>
+  </tr>
+  </thead>
+  <tbody id="productTableBody"></tbody>
+</table>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  $(document).ready(function() {
+    loadProducts();
+  });
+
+  function validateInputs(ref, des, prix) {
+    let isValid = true;
+
+    // Validation Référence
+    if (!ref || ref.length < 4 || ref.length > 12) {
+      $("#errorReference").text("Référence entre 4 et 12 caractères requise.");
+      isValid = false;
+    } else {
+      $("#errorReference").text("");
+    }
+
+    // Validation Désignation
+    if (!des) {
+      $("#errorDesignation").text("La désignation ne peut pas être vide.");
+      isValid = false;
+    } else {
+      $("#errorDesignation").text("");
+    }
+
+    // Validation Prix
+    if (!prix || prix <= 100) {
+      $("#errorPrix").text("Le prix doit être supérieur à 100.");
+      isValid = false;
+    } else {
+      $("#errorPrix").text("");
+    }
+
+    return isValid;
+  }
+
+  function saveProduct() {
+    let id = $("#productId").val();
+    let ref = $("#reference").val().trim();
+    let des = $("#designation").val().trim();
+    let prix = parseFloat($("#prix").val());
+    let qte = parseInt($("#qte").val());
+
+    if (!validateInputs(ref, des, prix)) {
+      return; // Stop la fonction si la validation échoue
+    }
+
+    let productData = { reference: ref, designation: des, price: prix, quantity: qte };
+
+    let ajaxOptions = {
+      contentType: "application/json",
+      data: JSON.stringify(productData),
+      success: function() {
+        resetForm();
+        loadProducts();
+      }
+    };
+
+    if (id) {
+      ajaxOptions.url = `/products/${id}`;
+      ajaxOptions.type = "PUT";
+    } else {
+      ajaxOptions.url = "/products";
+      ajaxOptions.type = "POST";
+    }
+
+    $.ajax(ajaxOptions);
+  }
+
+  function loadProducts() {
+    $.get("/products", function(data) {
+      displayProducts(data);
+    });
+  }
+
+  function displayProducts(products) {
+    $("#productTableBody").empty();
+    products.forEach(product => {
+      $("#productTableBody").append(`
+        <tr>
+          <td>${product.reference}</td>
+          <td>${product.designation}</td>
+          <td>${product.price} F CFA</td>
+          <td>${product.quantity}</td>
+          <td>
+            <button class="btn btn-danger btn-sm" onclick="deleteProduct(${product.id})">Supprimer</button>
+            <button class="btn btn-primary btn-sm" onclick="editProduct(${product.id}, '${product.reference}', '${product.designation}', ${product.price}, ${product.quantity})">Modifier</button>
+          </td>
+        </tr>
+      `);
+    });
+  }
+
+  function editProduct(id, reference, designation, price, quantity) {
+    $("#productId").val(id);
+    $("#reference").val(reference);
+    $("#designation").val(designation);
+    $("#prix").val(price);
+    $("#qte").val(quantity);
+    $("#saveButton").text("Modifier");
+  }
+
+  function resetForm() {
+    $("#productId").val("");
+    $("#reference").val("");
+    $("#designation").val("");
+    $("#prix").val("");
+    $("#qte").val("");
+    $("#saveButton").text("Ajouter");
+    $(".text-danger").text(""); // Efface les erreurs affichées
+  }
+
+  function searchProducts() {
+    let keyword = $("#search").val();
+    $.get(`/products/search?keyword=${keyword}`, function(data) {
+      displayProducts(data);
+    });
+  }
+
+  function deleteProduct(id) {
+    $.ajax({
+      url: `/products/${id}`,
+      type: "DELETE",
+      success: function() {
+        loadProducts();
+      }
+    });
+  }
+</script>
+</body>
+</html>
